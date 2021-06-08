@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul
+  labels:
+    app: consul
+spec:
+  ports:
+    - port: 80
+  selector:
+    app: consul
+    tier: frontend
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: consul-pv-claim
+  labels:
+    app: consul
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consul
+  labels:
+    app: consul
+spec:
+  selector:
+    matchLabels:
+      app: consul
+      tier: frontend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: consul
+        tier: frontend
+    spec:
+      containers:
+      - image: consul:1.9.5
+        name: consul
+        env:
+        - name: CONSUL_DB_HOST
+          value: consul-mysql
+        - name: CONSUL_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-pass
+              key: password
+        ports:
+        - containerPort: 80
+          name: consul
+        volumeMounts:
+        - name: consul-persistent-storage
+          mountPath: /var/www/html
+      volumes:
+      - name: consul-persistent-storage
+        persistentVolumeClaim:
+          claimName: consul-pv-claim
